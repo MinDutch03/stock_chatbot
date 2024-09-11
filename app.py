@@ -50,7 +50,6 @@ def plot_stock_price(ticker):
     plt.savefig('stock.png')
     plt.close()
 
-
 functions = [
     {
         'name': 'get_stock_price',
@@ -167,7 +166,7 @@ if user_input:
     try:
         st.session_state['messages'].append({'role': 'user', 'content': user_input})
 
-        response = openai.Completion.create(
+        response = openai.ChatCompletion.create(
             model='gpt-4-turbo',
             messages=st.session_state['messages'],
             functions=functions,
@@ -197,7 +196,7 @@ if user_input:
                     'content': function_response
                 })
 
-                second_response = openai.Completion.create(
+                second_response = openai.ChatCompletion.create(
                     model='gpt-4-turbo',
                     messages=st.session_state['messages']
                 )
