@@ -13,65 +13,83 @@ client = Groq()
 
 # Define stock analysis functions
 def get_real_time_stock_price(ticker):
-    stock_data = yf.Ticker(ticker).history(period='1d')
-    return str(stock_data.iloc[-1].Close)
-
-def get_historical_stock_price(ticker, date):
-    # Example function, not used here as we are focusing on real-time data
-    return "Historical data function placeholder"
+    try:
+        stock_data = yf.Ticker(ticker).history(period='1d')
+        price = stock_data['Close'].iloc[-1]
+        return str(price)
+    except Exception as e:
+        return f"Error retrieving data: {str(e)}"
 
 def calculate_SMA(ticker, window):
-    data = yf.Ticker(ticker).history(period='1y').Close
-    return str(data.rolling(window=window).mean().iloc[-1])
+    try:
+        data = yf.Ticker(ticker).history(period='1y').Close
+        return str(data.rolling(window=window).mean().iloc[-1])
+    except Exception as e:
+        return f"Error calculating SMA: {str(e)}"
 
 def calculate_EMA(ticker, window):
-    data = yf.Ticker(ticker).history(period='1y').Close
-    return str(data.ewm(span=window, adjust=False).mean().iloc[-1])
+    try:
+        data = yf.Ticker(ticker).history(period='1y').Close
+        return str(data.ewm(span=window, adjust=False).mean().iloc[-1])
+    except Exception as e:
+        return f"Error calculating EMA: {str(e)}"
 
 def calculate_RSI(ticker):
-    data = yf.Ticker(ticker).history(period='1y').Close
-    delta = data.diff()
-    up = delta.clip(lower=0)
-    down = -1 * delta.clip(upper=0)
-    ema_up = up.ewm(com=14-1, adjust=False).mean()
-    ema_down = down.ewm(com=14-1, adjust=False).mean()
-    rs = ema_up / ema_down
-    return str(100 - (100 / (1 + rs)).iloc[-1])
+    try:
+        data = yf.Ticker(ticker).history(period='1y').Close
+        delta = data.diff()
+        up = delta.clip(lower=0)
+        down = -1 * delta.clip(upper=0)
+        ema_up = up.ewm(com=14-1, adjust=False).mean()
+        ema_down = down.ewm(com=14-1, adjust=False).mean()
+        rs = ema_up / ema_down
+        return str(100 - (100 / (1 + rs)).iloc[-1])
+    except Exception as e:
+        return f"Error calculating RSI: {str(e)}"
 
 def calculate_MACD(ticker):
-    data = yf.Ticker(ticker).history(period='1y').Close
-    short_EMA = data.ewm(span=12, adjust=False).mean()
-    long_EMA = data.ewm(span=26, adjust=False).mean()
-    MACD = short_EMA - long_EMA
-    signal = MACD.ewm(span=9, adjust=False).mean()
-    MACD_histogram = MACD - signal
-    return f'{MACD[-1]}, {signal[-1]}, {MACD_histogram[-1]}'
+    try:
+        data = yf.Ticker(ticker).history(period='1y').Close
+        short_EMA = data.ewm(span=12, adjust=False).mean()
+        long_EMA = data.ewm(span=26, adjust=False).mean()
+        MACD = short_EMA - long_EMA
+        signal = MACD.ewm(span=9, adjust=False).mean()
+        MACD_histogram = MACD - signal
+        return f'{MACD[-1]}, {signal[-1]}, {MACD_histogram[-1]}'
+    except Exception as e:
+        return f"Error calculating MACD: {str(e)}"
 
 def plot_stock_price(ticker):
-    data = yf.Ticker(ticker).history(period='1y')
-    plt.figure(figsize=(10, 5))
-    plt.plot(data.index, data.Close)
-    plt.title(f'{ticker} Stock Price Over Last Year')
-    plt.xlabel('Date')
-    plt.ylabel('Stock Price ($)')
-    plt.grid(True)
-    plt.savefig('stock.png')
-    plt.close()
+    try:
+        data = yf.Ticker(ticker).history(period='1y')
+        plt.figure(figsize=(10, 5))
+        plt.plot(data.index, data.Close)
+        plt.title(f'{ticker} Stock Price Over Last Year')
+        plt.xlabel('Date')
+        plt.ylabel('Stock Price ($)')
+        plt.grid(True)
+        plt.savefig('stock.png')
+        plt.close()
+    except Exception as e:
+        return f"Error plotting stock price: {str(e)}"
 
 def predict_stock_price(ticker, days_ahead):
-    data = yf.Ticker(ticker).history(period='1y')
-    data = data.reset_index()
-    data['Date'] = (data['Date'] - data['Date'].min()).dt.days
-    X = data[['Date']].values
-    y = data['Close'].values
+    try:
+        data = yf.Ticker(ticker).history(period='1y')
+        data = data.reset_index()
+        data['Date'] = (data['Date'] - data['Date'].min()).dt.days
+        X = data[['Date']].values
+        y = data['Close'].values
 
-    model = LinearRegression()
-    model.fit(X, y)
+        model = LinearRegression()
+        model.fit(X, y)
 
-    future_days = np.array([[X[-1, 0] + days_ahead]])
-    prediction = model.predict(future_days)
+        future_days = np.array([[X[-1, 0] + days_ahead]])
+        prediction = model.predict(future_days)
 
-    return str(prediction[0])
+        return str(prediction[0])
+    except Exception as e:
+        return f"Error predicting stock price: {str(e)}"
 
 # Define available functions
 available_functions = {
