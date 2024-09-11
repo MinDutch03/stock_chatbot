@@ -99,7 +99,7 @@ def create_conversational_chain():
     memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
     # No document upload or retrieval chain needed
-    chain = ConversationalRetrievalChain.from_llm(llm=llm, chain_type='stuff', memory=memory)
+    chain = ConversationalRetrievalChain.from_llm(llm=llm, chain_type='stuff', retriever=None, memory=memory)
     return chain
 
 def main():
