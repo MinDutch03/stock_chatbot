@@ -175,7 +175,7 @@ if user_input:
     st.session_state['messages'].append({'role':'user','content':f'{user_input}'})
 
     response = openai.ChatCompletion.create(
-      model= 'gpt-4.0',
+      model= 'gpt-3.5=turbo-0613',
       messages=st.session_state['messages'],
       functions=functions,
       function_call='auto'
@@ -218,6 +218,5 @@ if user_input:
       st.text(response_message['content'])
       st.session_state['messages'].append({'role':'assistant','content':response_message['content']})
 
-  except:
-    st.text("Try Again!")
-
+  except Exception as e:
+    raise e
