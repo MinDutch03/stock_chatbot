@@ -51,7 +51,7 @@ def plot_stock_price(ticker):
     plt.savefig('stock.png')
     plt.close()
 
-def predict_stock_price(ticker, days_ahead):
+def predict_stock_price(ticker):
     data = yf.Ticker(ticker).history(period='1y')
     data = data.reset_index()
     data['Date'] = (data['Date'] - data['Date'].min()).dt.days
@@ -61,7 +61,7 @@ def predict_stock_price(ticker, days_ahead):
     model = LinearRegression()
     model.fit(X, y)
 
-    future_days = np.array([[X[-1, 0] + days_ahead]])
+    future_days = np.array([[X[-1, 0] + 1]])
     prediction = model.predict(future_days)
 
     return str(prediction[0])
@@ -112,13 +112,7 @@ if user_input:
                 function_args = json.loads(function_call.arguments)
 
                 if function_name in ['get_stock_price', 'calculate_RSI', 'calculate_MACD', 'plot_stock_price', 'predict_stock_price']:
-                    if function_name == 'predict_stock_price':
-                        args_dict = {
-                            'ticker': function_args.get('ticker'),
-                            'days_ahead': function_args.get('days_ahead')
-                        }
-                    else:
-                        args_dict = {'ticker': function_args.get('ticker')}
+                    args_dict = {'ticker': function_args.get('ticker')}
                 elif function_name in ['calculate_SMA', 'calculate_EMA']:
                     args_dict = {'ticker': function_args.get('ticker'), 'window': function_args.get('window')}
 
