@@ -1,5 +1,4 @@
 import json
-import pandas as pd
 import matplotlib.pyplot as plt
 import streamlit as st
 import yfinance as yf
@@ -175,9 +174,10 @@ if user_input:
             stream=False
         )
 
-        response_message = response['choices'][0]['message']
+        # Access response correctly
+        response_message = response.choices[0].message
 
-        if response_message.get('function_call'):
+        if 'function_call' in response_message:
             function_name = response_message['function_call']['name']
             function_args = json.loads(response_message['function_call']['arguments'])
 
@@ -208,8 +208,8 @@ if user_input:
                     stop=None,
                     stream=False
                 )
-                st.text(final_response['choices'][0]['message']['content'])
-                st.session_state['messages'].append({'role': 'assistant', 'content': final_response['choices'][0]['message']['content']})
+                st.text(final_response.choices[0].message['content'])
+                st.session_state['messages'].append({'role': 'assistant', 'content': final_response.choices[0].message['content']})
         else:
             st.text(response_message['content'])
             st.session_state['messages'].append({'role': 'assistant', 'content': response_message['content']})
