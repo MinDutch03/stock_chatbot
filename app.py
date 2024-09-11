@@ -1,99 +1,74 @@
 import json
 import matplotlib.pyplot as plt
-import pandas as pd
 import streamlit as st
 import yfinance as yf
-from groq import Groq
+import openai
 from sklearn.linear_model import LinearRegression
 import numpy as np
-import datetime
 
-# Initialize Groq client
-client = Groq()
+# Set OpenAI API key from st.secrets
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 # Define stock analysis functions
-def get_real_time_stock_price(ticker):
-    try:
-        stock_data = yf.Ticker(ticker).history(period='1d')
-        price = stock_data['Close'].iloc[-1]
-        return str(price)
-    except Exception as e:
-        return f"Error retrieving data: {str(e)}"
+def get_stock_price(ticker):
+    return str(yf.Ticker(ticker).history(period='1y').iloc[-1].Close)
 
 def calculate_SMA(ticker, window):
-    try:
-        data = yf.Ticker(ticker).history(period='1y').Close
-        return str(data.rolling(window=window).mean().iloc[-1])
-    except Exception as e:
-        return f"Error calculating SMA: {str(e)}"
+    data = yf.Ticker(ticker).history(period='1y').Close
+    return str(data.rolling(window=window).mean().iloc[-1])
 
 def calculate_EMA(ticker, window):
-    try:
-        data = yf.Ticker(ticker).history(period='1y').Close
-        return str(data.ewm(span=window, adjust=False).mean().iloc[-1])
-    except Exception as e:
-        return f"Error calculating EMA: {str(e)}"
+    data = yf.Ticker(ticker).history(period='1y').Close
+    return str(data.ewm(span=window, adjust=False).mean().iloc[-1])
 
 def calculate_RSI(ticker):
-    try:
-        data = yf.Ticker(ticker).history(period='1y').Close
-        delta = data.diff()
-        up = delta.clip(lower=0)
-        down = -1 * delta.clip(upper=0)
-        ema_up = up.ewm(com=14-1, adjust=False).mean()
-        ema_down = down.ewm(com=14-1, adjust=False).mean()
-        rs = ema_up / ema_down
-        return str(100 - (100 / (1 + rs)).iloc[-1])
-    except Exception as e:
-        return f"Error calculating RSI: {str(e)}"
+    data = yf.Ticker(ticker).history(period='1y').Close
+    delta = data.diff()
+    up = delta.clip(lower=0)
+    down = -1 * delta.clip(upper=0)
+    ema_up = up.ewm(com=14-1, adjust=False).mean()
+    ema_down = down.ewm(com=14-1, adjust=False).mean()
+    rs = ema_up / ema_down
+    return str(100 - (100 / (1 + rs)).iloc[-1])
 
 def calculate_MACD(ticker):
-    try:
-        data = yf.Ticker(ticker).history(period='1y').Close
-        short_EMA = data.ewm(span=12, adjust=False).mean()
-        long_EMA = data.ewm(span=26, adjust=False).mean()
-        MACD = short_EMA - long_EMA
-        signal = MACD.ewm(span=9, adjust=False).mean()
-        MACD_histogram = MACD - signal
-        return f'{MACD[-1]}, {signal[-1]}, {MACD_histogram[-1]}'
-    except Exception as e:
-        return f"Error calculating MACD: {str(e)}"
+    data = yf.Ticker(ticker).history(period='1y').Close
+    short_EMA = data.ewm(span=12, adjust=False).mean()
+    long_EMA = data.ewm(span=26, adjust=False).mean()
+    MACD = short_EMA - long_EMA
+    signal = MACD.ewm(span=9, adjust=False).mean()
+    MACD_histogram = MACD - signal
+    return f'{MACD[-1]}, {signal[-1]}, {MACD_histogram[-1]}'
 
 def plot_stock_price(ticker):
-    try:
-        data = yf.Ticker(ticker).history(period='1y')
-        plt.figure(figsize=(10, 5))
-        plt.plot(data.index, data.Close)
-        plt.title(f'{ticker} Stock Price Over Last Year')
-        plt.xlabel('Date')
-        plt.ylabel('Stock Price ($)')
-        plt.grid(True)
-        plt.savefig('stock.png')
-        plt.close()
-    except Exception as e:
-        return f"Error plotting stock price: {str(e)}"
+    data = yf.Ticker(ticker).history(period='1y')
+    plt.figure(figsize=(10, 5))
+    plt.plot(data.index, data.Close)
+    plt.title(f'{ticker} Stock Price Over Last Year')
+    plt.xlabel('Date')
+    plt.ylabel('Stock Price ($)')
+    plt.grid(True)
+    plt.savefig('stock.png')
+    plt.close()
 
 def predict_stock_price(ticker, days_ahead):
-    try:
-        data = yf.Ticker(ticker).history(period='1y')
-        data = data.reset_index()
-        data['Date'] = (data['Date'] - data['Date'].min()).dt.days
-        X = data[['Date']].values
-        y = data['Close'].values
+    data = yf.Ticker(ticker).history(period='1y')
+    data = data.reset_index()
+    data['Date'] = (data['Date'] - data['Date'].min()).dt.days
+    X = data[['Date']].values
+    y = data['Close'].values
 
-        model = LinearRegression()
-        model.fit(X, y)
+    model = LinearRegression()
+    model.fit(X, y)
 
-        future_days = np.array([[X[-1, 0] + days_ahead]])
-        prediction = model.predict(future_days)
+    future_days = np.array([[X[-1, 0] + days_ahead]])
+    prediction = model.predict(future_days)
 
-        return str(prediction[0])
-    except Exception as e:
-        return f"Error predicting stock price: {str(e)}"
+    return str(prediction[0])
 
 # Define available functions
 available_functions = {
-    'get_real_time_stock_price': get_real_time_stock_price,
+    'get_stock_price': get_stock_price,
     'calculate_SMA': calculate_SMA,
     'calculate_RSI': calculate_RSI,
     'calculate_EMA': calculate_EMA,
@@ -114,15 +89,14 @@ if user_input:
     try:
         st.session_state['messages'].append({'role': 'user', 'content': user_input})
 
-        # Call Groq API
-        response = client.chat.completions.create(
-            messages=st.session_state['messages'],
+        # Call OpenAI API
+        response = openai.ChatCompletion.create(
             model="llama3-70b-8192",
+            messages=st.session_state['messages'],
             temperature=0.5,
             max_tokens=1024,
             top_p=1,
-            stop=None,
-            stream=False
+            stop=None
         )
 
         # Extract choices from the response
@@ -136,7 +110,7 @@ if user_input:
                 function_name = function_call.name
                 function_args = json.loads(function_call.arguments)
 
-                if function_name in ['get_real_time_stock_price', 'calculate_RSI', 'calculate_MACD', 'plot_stock_price', 'predict_stock_price']:
+                if function_name in ['get_stock_price', 'calculate_RSI', 'calculate_MACD', 'plot_stock_price', 'predict_stock_price']:
                     if function_name == 'predict_stock_price':
                         args_dict = {
                             'ticker': function_args.get('ticker'),
@@ -160,14 +134,13 @@ if user_input:
                         'content': function_response
                     })
                     # Generate final response
-                    final_response = client.chat.completions.create(
-                        messages=st.session_state['messages'],
+                    final_response = openai.ChatCompletion.create(
                         model="llama3-70b-8192",
+                        messages=st.session_state['messages'],
                         temperature=0.5,
                         max_tokens=1024,
                         top_p=1,
-                        stop=None,
-                        stream=False
+                        stop=None
                     )
                     final_message = final_response.choices[0].message
                     st.text(final_message.content)  # Access message content correctly
