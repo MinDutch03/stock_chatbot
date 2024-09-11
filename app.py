@@ -1,17 +1,17 @@
-import streamlit as st
-from streamlit_chat import message
-from langchain.chains import LLMChain
-from langchain.memory import ConversationBufferMemory
-from langchain_core.prompts import PromptTemplate
-from langchain_huggingface import HuggingFaceEmbeddings
-from langchain_groq import ChatGroq
-import os
-import yfinance as yf
+import json
+import pandas as pd
 import matplotlib.pyplot as plt
+import streamlit as st
+import yfinance as yf
+from langchain_groq import ChatGroq
 
+# Initialize Groq
 groq_api_key = st.secrets['GROQ_API_KEY']
+llm = ChatGroq(
+    groq_api_key=groq_api_key,
+    model_name='llama3-70b-8192'
+)
 
-# Stock-related functions
 def get_stock_price(ticker):
     return str(yf.Ticker(ticker).history(period='1y').iloc[-1].Close)
 
@@ -40,7 +40,7 @@ def calculate_MACD(ticker):
     MACD = short_EMA - long_EMA
     signal = MACD.ewm(span=9, adjust=False).mean()
     MACD_histogram = MACD - signal
-    return f'{MACD.iloc[-1]}, {signal.iloc[-1]}, {MACD_histogram.iloc[-1]}'
+    return f'{MACD[-1]}, {signal[-2]}, {MACD_histogram[-1]}'
 
 def plot_stock_price(ticker):
     data = yf.Ticker(ticker).history(period='1y')
@@ -52,79 +52,160 @@ def plot_stock_price(ticker):
     plt.grid(True)
     plt.savefig('stock.png')
     plt.close()
-    return 'stock.png'
 
-# Chat functions and configuration
-def initialize_session_state():
-    if 'history' not in st.session_state:
-        st.session_state['history'] = []
+# Define the functions and available functions for Groq
+functions = [
+    {
+        'name': 'get_stock_price',
+        'description': 'Gets the latest stock price given the ticker symbol of a company.',
+        'parameters': {
+            'type': 'object',
+            'properties': {
+                'ticker': {
+                    'type': 'string',
+                    'description': 'The stock ticker symbol for a company (e.g., AAPL for Apple).'
+                }
+            },
+            'required': ['ticker']
+        }
+    },
+    {
+        "name": "calculate_SMA",
+        "description": "Calculate the simple moving average for a given stock ticker and a window.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "The stock ticker symbol for a company (e.g., AAPL for Apple)",
+                },
+                "window": {
+                    "type": "integer",
+                    "description": "The timeframe to consider when calculating the SMA"
+                }
+            },
+            "required": ["ticker", "window"],
+        },
+    },
+    {
+        "name": "calculate_EMA",
+        "description": "Calculate the exponential moving average for a given stock ticker and a window.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "The stock ticker symbol for a company (e.g., AAPL for Apple)",
+                },
+                "window": {
+                    "type": "integer",
+                    "description": "The timeframe to consider when calculating the EMA"
+                }
+            },
+            "required": ["ticker", "window"],
+        },
+    },
+    {
+        "name": "calculate_RSI",
+        "description": "Calculate the RSI for a given stock ticker.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "The stock ticker symbol for a company (e.g., AAPL for Apple)",
+                },
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
+        "name": "calculate_MACD",
+        "description": "Calculate the MACD for a given stock ticker.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "The stock ticker symbol for a company (e.g., AAPL for Apple)",
+                },
+            },
+            "required": ["ticker"],
+        },
+    },
+    {
+        "name": "plot_stock_price",
+        "description": "Plot the stock price of the last year given the ticker symbol of a company.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "ticker": {
+                    "type": "string",
+                    "description": "The stock ticker symbol for a company (e.g., AAPL for Apple)",
+                },
+            },
+            "required": ["ticker"],
+        },
+    },
+]
 
-    if 'generated' not in st.session_state:
-        st.session_state['generated'] = ["Hello! Ask me anything 🤗"]
+available_functions = {
+    'get_stock_price': get_stock_price,
+    'calculate_SMA': calculate_SMA,
+    'calculate_RSI': calculate_RSI,
+    'calculate_EMA': calculate_EMA,
+    'calculate_MACD': calculate_MACD,
+    'plot_stock_price': plot_stock_price
+}
 
-    if 'past' not in st.session_state:
-        st.session_state['past'] = ["Hey! 👋"]
+if 'messages' not in st.session_state:
+    st.session_state['messages'] = []
 
-def conversation_chat(query, chain, history):
-    # Pass the question and the chat history to the chain
-    result = chain.run({"question": query, "chat_history": history})
-    history.append((query, result))
-    return result
+st.title('Stock Analysis Chatbot Assistant')
 
-def display_chat_history(chain):
-    reply_container = st.container()
-    container = st.container()
+user_input = st.text_input('Your input:')
 
-    with container:
-        user_input = st.chat_input("Ask me something....")
+if user_input:
+    try:
+        st.session_state['messages'].append({'role': 'user', 'content': f'{user_input}'})
 
-        if user_input:
-            with st.spinner('Generating response...'):
-                output = conversation_chat(user_input, chain, st.session_state['history'])
-                st.session_state['past'].append(user_input)
-                st.session_state['generated'].append(output)
+        response = llm.chat_completion.create(
+            messages=st.session_state['messages'],
+            functions=functions,
+            function_call='auto'
+        )
 
-    if st.session_state['generated']:
-        with reply_container:
-            for i in range(len(st.session_state['generated'])):
-                message(st.session_state["past"][i], is_user=True, key=str(i) + '_user', avatar_style="avataaars", seed="Aneka")
-                message(st.session_state["generated"][i], key=str(i), avatar_style="bottts", seed="Aneka")
+        response_message = response['choices'][0]['message']
 
-def create_conversational_chain():
-    # Define the prompt template for the conversation
-    template = """You are a helpful chatbot. Answer the question based on the conversation history.
-    Question: {question}
-    Chat History: {chat_history}"""
+        if response_message.get('function_call'):
+            function_name = response_message['function_call']['name']
+            function_args = json.loads(response_message['function_call']['arguments'])
+            if function_name in ['get_stock_price', 'calculate_RSI', 'calculate_MACD', 'plot_stock_price']:
+                args_dict = {'ticker': function_args.get('ticker')}
+            elif function_name in ['calculate_SMA', 'calculate_EMA']:
+                args_dict = {'ticker': function_args.get('ticker'), 'window': function_args.get('window')}
 
-    # Create a prompt object using the template
-    prompt = PromptTemplate(input_variables=["question", "chat_history"], template=template)
+            function_to_call = available_functions[function_name]
+            function_response = function_to_call(**args_dict)
 
-    # Create the LLM (ChatGroq in this case)
-    llm = ChatGroq(
-        groq_api_key=groq_api_key,
-        model_name='llama3-70b-8192'
-    )
-
-    # Set up memory for keeping track of conversation history
-    memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
-
-    # Create the LLM chain with the prompt and memory
-    chain = LLMChain(llm=llm, prompt=prompt, memory=memory)
-
-    return chain
-
-def main():
-    # Initialize session state
-    initialize_session_state()
-    st.set_page_config(page_title="Ask your Chatbot")
-    st.header("Chat with the StockBot 💬")
-    linkedin = "https://www.linkedin.com/in/minhduc030303/"
-    st.markdown("A Stock ChatBot App by [Duc Nguyen Minh](%s) 👨🏻‍💻" % linkedin)
-
-    # Create the chain object
-    chain = create_conversational_chain()
-
-    display_chat_history(chain)
-
-if __name__ == "__main__":
-    main()
+            if function_name == 'plot_stock_price':
+                st.image('stock.png')
+            else:
+                st.session_state['messages'].append(response_message)
+                st.session_state['messages'].append(
+                    {
+                        'role': 'function',
+                        'name': function_name,
+                        'content': function_response
+                    }
+                )
+                second_response = llm.chat_completion.create(
+                    messages=st.session_state['messages']
+                )
+                st.text(second_response['choices'][0]['message']['content'])
+                st.session_state['messages'].append({'role': 'assistant', 'content': second_response['choices'][0]['message']['content']})
+        else:
+            st.text(response_message['content'])
+            st.session_state['messages'].append({'role': 'assistant', 'content': response_message['content']})
+    except Exception as e:
+        st.text(f'Error: {e}')
