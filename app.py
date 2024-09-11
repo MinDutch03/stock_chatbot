@@ -3,10 +3,13 @@ import matplotlib.pyplot as plt
 import streamlit as st
 import yfinance as yf
 from groq import Groq
+from sklearn.linear_model import LinearRegression
+import numpy as np
 
 # Initialize Groq client
 client = Groq()
 
+# Define stock analysis functions
 def get_stock_price(ticker):
     return str(yf.Ticker(ticker).history(period='1y').iloc[-1].Close)
 
@@ -48,110 +51,33 @@ def plot_stock_price(ticker):
     plt.savefig('stock.png')
     plt.close()
 
-functions = [
-    {
-        'name': 'get_stock_price',
-        'description': 'Gets the latest stock price given the ticker symbol of a company.',
-        'parameters': {
-            'type': 'object',
-            'properties': {
-                'ticker': {
-                    'type': 'string',
-                    'description': 'The stock ticker symbol for a company (e.g., AAPL for Apple).'
-                }
-            },
-            'required': ['ticker']
-        }
-    },
-    {
-        'name': 'calculate_SMA',
-        'description': 'Calculate the simple moving average for a given stock ticker and a window.',
-        'parameters': {
-            'type': 'object',
-            'properties': {
-                'ticker': {
-                    'type': 'string',
-                    'description': 'The stock ticker symbol for a company (e.g., AAPL for Apple).'
-                },
-                'window': {
-                    'type': 'integer',
-                    'description': 'The timeframe to consider when calculating the SMA.'
-                }
-            },
-            'required': ['ticker', 'window']
-        }
-    },
-    {
-        'name': 'calculate_EMA',
-        'description': 'Calculate the exponential moving average for a given stock ticker and a window.',
-        'parameters': {
-            'type': 'object',
-            'properties': {
-                'ticker': {
-                    'type': 'string',
-                    'description': 'The stock ticker symbol for a company (e.g., AAPL for Apple).'
-                },
-                'window': {
-                    'type': 'integer',
-                    'description': 'The timeframe to consider when calculating the EMA.'
-                }
-            },
-            'required': ['ticker', 'window']
-        }
-    },
-    {
-        'name': 'calculate_RSI',
-        'description': 'Calculate the RSI for a given stock ticker.',
-        'parameters': {
-            'type': 'object',
-            'properties': {
-                'ticker': {
-                    'type': 'string',
-                    'description': 'The stock ticker symbol for a company (e.g., AAPL for Apple).'
-                }
-            },
-            'required': ['ticker']
-        }
-    },
-    {
-        'name': 'calculate_MACD',
-        'description': 'Calculate the MACD for a given stock ticker.',
-        'parameters': {
-            'type': 'object',
-            'properties': {
-                'ticker': {
-                    'type': 'string',
-                    'description': 'The stock ticker symbol for a company (e.g., AAPL for Apple).'
-                }
-            },
-            'required': ['ticker']
-        }
-    },
-    {
-        'name': 'plot_stock_price',
-        'description': 'Plot the stock price of the last year given the ticker symbol of a company.',
-        'parameters': {
-            'type': 'object',
-            'properties': {
-                'ticker': {
-                    'type': 'string',
-                    'description': 'The stock ticker symbol for a company (e.g., AAPL for Apple).'
-                }
-            },
-            'required': ['ticker']
-        }
-    },
-]
+def predict_stock_price(ticker):
+    data = yf.Ticker(ticker).history(period='1y')
+    data = data.reset_index()
+    data['Date'] = (data['Date'] - data['Date'].min()).dt.days
+    X = data[['Date']].values
+    y = data['Close'].values
 
+    model = LinearRegression()
+    model.fit(X, y)
+
+    future_days = np.array([[X[-1, 0] + 1]])
+    prediction = model.predict(future_days)
+
+    return str(prediction[0])
+
+# Define available functions
 available_functions = {
     'get_stock_price': get_stock_price,
     'calculate_SMA': calculate_SMA,
     'calculate_RSI': calculate_RSI,
     'calculate_EMA': calculate_EMA,
     'calculate_MACD': calculate_MACD,
-    'plot_stock_price': plot_stock_price
+    'plot_stock_price': plot_stock_price,
+    'predict_stock_price': predict_stock_price
 }
 
+# Initialize Streamlit session state
 if 'messages' not in st.session_state:
     st.session_state['messages'] = []
 
@@ -185,7 +111,7 @@ if user_input:
                 function_name = function_call.name
                 function_args = json.loads(function_call.arguments)
 
-                if function_name in ['get_stock_price', 'calculate_RSI', 'calculate_MACD', 'plot_stock_price']:
+                if function_name in ['get_stock_price', 'calculate_RSI', 'calculate_MACD', 'plot_stock_price', 'predict_stock_price']:
                     args_dict = {'ticker': function_args.get('ticker')}
                 elif function_name in ['calculate_SMA', 'calculate_EMA']:
                     args_dict = {'ticker': function_args.get('ticker'), 'window': function_args.get('window')}
