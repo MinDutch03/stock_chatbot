@@ -6,7 +6,7 @@ import openai
 import numpy as np
 
 # Set OpenAI API key from st.secrets
-openai.api_key = open('API_KEY', 'r').read()
+openai.api_key = st.secrets["OPENAI_API_KEY"]
 
 # Define stock analysis functions
 def get_stock_price(ticker):
