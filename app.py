@@ -107,8 +107,8 @@ if user_input:
             # Check if the function call exists
             function_call = getattr(response_message, 'function_call', None)
             if function_call:
-                function_name = function_call.name
-                function_args = json.loads(function_call.arguments)
+                function_name = function_call.get('name')
+                function_args = json.loads(function_call.get('arguments'))
 
                 if function_name in ['get_stock_price', 'calculate_RSI', 'calculate_MACD', 'plot_stock_price', 'predict_stock_price']:
                     if function_name == 'predict_stock_price':
@@ -143,12 +143,12 @@ if user_input:
                         stop=None
                     )
                     final_message = final_response.choices[0].message
-                    st.text(final_message.content)  # Access message content correctly
-                    st.session_state['messages'].append({'role': 'assistant', 'content': final_message.content})
+                    st.text(final_message['content'])  # Access message content correctly
+                    st.session_state['messages'].append({'role': 'assistant', 'content': final_message['content']})
             else:
                 # Handle case where function_call is None or not present
-                st.text(response_message.content)
-                st.session_state['messages'].append({'role': 'assistant', 'content': response_message.content})
+                st.text(response_message['content'])
+                st.session_state['messages'].append({'role': 'assistant', 'content': response_message['content']})
         else:
             st.text('No choices found in response.')
     except Exception as e:
