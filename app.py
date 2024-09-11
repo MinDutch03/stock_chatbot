@@ -174,44 +174,46 @@ if user_input:
             stream=False
         )
 
-        # Access response correctly
-        response_message = response.choices[0].message
+        # Check the response type
+        choices = response.choices  # List of choices
+        if choices:
+            response_message = choices[0].message  # Use dot notation if `message` is an attribute
+            if hasattr(response_message, 'function_call'):
+                function_call = response_message.function_call
+                function_name = function_call.name
+                function_args = json.loads(function_call.arguments)
 
-        if 'function_call' in response_message:
-            function_name = response_message['function_call']['name']
-            function_args = json.loads(response_message['function_call']['arguments'])
+                if function_name in ['get_stock_price', 'calculate_RSI', 'calculate_MACD', 'plot_stock_price']:
+                    args_dict = {'ticker': function_args.get('ticker')}
+                elif function_name in ['calculate_SMA', 'calculate_EMA']:
+                    args_dict = {'ticker': function_args.get('ticker'), 'window': function_args.get('window')}
 
-            if function_name in ['get_stock_price', 'calculate_RSI', 'calculate_MACD', 'plot_stock_price']:
-                args_dict = {'ticker': function_args.get('ticker')}
-            elif function_name in ['calculate_SMA', 'calculate_EMA']:
-                args_dict = {'ticker': function_args.get('ticker'), 'window': function_args.get('window')}
+                function_to_call = available_functions[function_name]
+                function_response = function_to_call(**args_dict)
 
-            function_to_call = available_functions[function_name]
-            function_response = function_to_call(**args_dict)
-
-            if function_name == 'plot_stock_price':
-                st.image('stock.png')
+                if function_name == 'plot_stock_price':
+                    st.image('stock.png')
+                else:
+                    st.session_state['messages'].append(response_message)
+                    st.session_state['messages'].append({
+                        'role': 'function',
+                        'name': function_name,
+                        'content': function_response
+                    })
+                    # Generate final response
+                    final_response = client.chat.completions.create(
+                        messages=st.session_state['messages'],
+                        model="llama3-70b-8192",
+                        temperature=0.5,
+                        max_tokens=1024,
+                        top_p=1,
+                        stop=None,
+                        stream=False
+                    )
+                    st.text(final_response.choices[0].message.content)  # Access message content correctly
+                    st.session_state['messages'].append({'role': 'assistant', 'content': final_response.choices[0].message.content})
             else:
-                st.session_state['messages'].append(response_message)
-                st.session_state['messages'].append({
-                    'role': 'function',
-                    'name': function_name,
-                    'content': function_response
-                })
-                # Generate final response
-                final_response = client.chat.completions.create(
-                    messages=st.session_state['messages'],
-                    model="llama3-70b-8192",
-                    temperature=0.5,
-                    max_tokens=1024,
-                    top_p=1,
-                    stop=None,
-                    stream=False
-                )
-                st.text(final_response.choices[0].message['content'])
-                st.session_state['messages'].append({'role': 'assistant', 'content': final_response.choices[0].message['content']})
-        else:
-            st.text(response_message['content'])
-            st.session_state['messages'].append({'role': 'assistant', 'content': response_message['content']})
+                st.text(response_message.content)
+                st.session_state['messages'].append({'role': 'assistant', 'content': response_message.content})
     except Exception as e:
         st.text(f'Error: {str(e)}')
