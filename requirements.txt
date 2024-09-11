@@ -1,0 +1,8 @@
+streamlit
+streamlit_chat
+langchain
+langchain_core
+langchain_huggingface
+langchain_groq
+yfinance
+matplotlib
