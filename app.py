@@ -66,9 +66,10 @@ def initialize_session_state():
         st.session_state['past'] = ["Hey! 👋"]
 
 def conversation_chat(query, chain, history):
-    result = chain.invoke({"question": query, "chat_history": history})
-    history.append((query, result["answer"]))
-    return result["answer"]
+    # Pass the question and the chat history to the chain
+    result = chain.run({"question": query, "chat_history": history})
+    history.append((query, result))
+    return result
 
 def display_chat_history(chain):
     reply_container = st.container()
@@ -91,19 +92,24 @@ def display_chat_history(chain):
 
 def create_conversational_chain():
     # Define the prompt template for the conversation
-    prompt = PromptTemplate(
-        input_variables=["question"],
-        template="You are a helpful assistant. Answer the following question: {question}"
-    )
+    template = """You are a helpful chatbot. Answer the question based on the conversation history.
+    Question: {question}
+    Chat History: {chat_history}"""
 
-    # Create llm
+    # Create a prompt object using the template
+    prompt = PromptTemplate(input_variables=["question", "chat_history"], template=template)
+
+    # Create the LLM (ChatGroq in this case)
     llm = ChatGroq(
-        groq_api_key= groq_api_key,
+        groq_api_key=groq_api_key,
         model_name='llama3-70b-8192'
     )
 
-    # Create the LLM chain with the prompt
-    chain = LLMChain(llm=llm, prompt=prompt)
+    # Set up memory for keeping track of conversation history
+    memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+
+    # Create the LLM chain with the prompt and memory
+    chain = LLMChain(llm=llm, prompt=prompt, memory=memory)
 
     return chain
 
