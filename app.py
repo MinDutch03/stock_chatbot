@@ -1,6 +1,6 @@
 import streamlit as st
 from streamlit_chat import message
-from langchain.chains import ConversationalRetrievalChain
+from langchain.chains import LLMChain
 from langchain.memory import ConversationBufferMemory
 from langchain_core.prompts import PromptTemplate
 from langchain_huggingface import HuggingFaceEmbeddings
@@ -90,16 +90,21 @@ def display_chat_history(chain):
                 message(st.session_state["generated"][i], key=str(i), avatar_style="bottts", seed="Aneka")
 
 def create_conversational_chain():
+    # Define the prompt template for the conversation
+    prompt = PromptTemplate(
+        input_variables=["question"],
+        template="You are a helpful assistant. Answer the following question: {question}"
+    )
+
     # Create llm
     llm = ChatGroq(
-        groq_api_key=groq_api_key,
+        groq_api_key= groq_api_key,
         model_name='llama3-70b-8192'
     )
 
-    memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
+    # Create the LLM chain with the prompt
+    chain = LLMChain(llm=llm, prompt=prompt)
 
-    # No document upload or retrieval chain needed
-    chain = ConversationalRetrievalChain.from_llm(llm=llm, chain_type='stuff', retriever=None, memory=memory)
     return chain
 
 def main():
