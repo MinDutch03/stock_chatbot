@@ -174,11 +174,16 @@ if user_input:
             stream=False
         )
 
-        # Check the response type
-        choices = response.choices  # List of choices
+        # Debug: Print the response to understand its structure
+        print(json.dumps(response, indent=2))
+
+        # Extract choices from the response
+        choices = response.choices
         if choices:
-            response_message = choices[0].message  # Use dot notation if `message` is an attribute
-            if hasattr(response_message, 'function_call'):
+            response_message = choices[0].message
+
+            # Check if the function call exists
+            if hasattr(response_message, 'function_call') and response_message.function_call is not None:
                 function_call = response_message.function_call
                 function_name = function_call.name
                 function_args = json.loads(function_call.arguments)
@@ -213,7 +218,10 @@ if user_input:
                     st.text(final_response.choices[0].message.content)  # Access message content correctly
                     st.session_state['messages'].append({'role': 'assistant', 'content': final_response.choices[0].message.content})
             else:
+                # Handle case where function_call is None or not present
                 st.text(response_message.content)
                 st.session_state['messages'].append({'role': 'assistant', 'content': response_message.content})
+        else:
+            st.text('No choices found in response.')
     except Exception as e:
         st.text(f'Error: {str(e)}')
