@@ -1,5 +1,6 @@
 import json
 import matplotlib.pyplot as plt
+import pandas as pd
 import streamlit as st
 import yfinance as yf
 from groq import Groq
@@ -11,9 +12,13 @@ import datetime
 client = Groq()
 
 # Define stock analysis functions
-def get_stock_price(ticker):
+def get_real_time_stock_price(ticker):
     stock_data = yf.Ticker(ticker).history(period='1d')
     return str(stock_data.iloc[-1].Close)
+
+def get_historical_stock_price(ticker, date):
+    # Example function, not used here as we are focusing on real-time data
+    return "Historical data function placeholder"
 
 def calculate_SMA(ticker, window):
     data = yf.Ticker(ticker).history(period='1y').Close
@@ -70,7 +75,7 @@ def predict_stock_price(ticker, days_ahead):
 
 # Define available functions
 available_functions = {
-    'get_stock_price': get_stock_price,
+    'get_real_time_stock_price': get_real_time_stock_price,
     'calculate_SMA': calculate_SMA,
     'calculate_RSI': calculate_RSI,
     'calculate_EMA': calculate_EMA,
@@ -113,7 +118,7 @@ if user_input:
                 function_name = function_call.name
                 function_args = json.loads(function_call.arguments)
 
-                if function_name in ['get_stock_price', 'calculate_RSI', 'calculate_MACD', 'plot_stock_price', 'predict_stock_price']:
+                if function_name in ['get_real_time_stock_price', 'calculate_RSI', 'calculate_MACD', 'plot_stock_price', 'predict_stock_price']:
                     if function_name == 'predict_stock_price':
                         args_dict = {
                             'ticker': function_args.get('ticker'),
