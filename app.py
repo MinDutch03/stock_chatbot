@@ -174,17 +174,14 @@ if user_input:
             stream=False
         )
 
-        # Debug: Print the response to understand its structure
-        print(json.dumps(response, indent=2))
-
         # Extract choices from the response
         choices = response.choices
         if choices:
             response_message = choices[0].message
 
             # Check if the function call exists
-            if hasattr(response_message, 'function_call') and response_message.function_call is not None:
-                function_call = response_message.function_call
+            function_call = getattr(response_message, 'function_call', None)
+            if function_call:
                 function_name = function_call.name
                 function_args = json.loads(function_call.arguments)
 
@@ -215,8 +212,9 @@ if user_input:
                         stop=None,
                         stream=False
                     )
-                    st.text(final_response.choices[0].message.content)  # Access message content correctly
-                    st.session_state['messages'].append({'role': 'assistant', 'content': final_response.choices[0].message.content})
+                    final_message = final_response.choices[0].message
+                    st.text(final_message.content)  # Access message content correctly
+                    st.session_state['messages'].append({'role': 'assistant', 'content': final_message.content})
             else:
                 # Handle case where function_call is None or not present
                 st.text(response_message.content)
