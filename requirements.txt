@@ -6,4 +6,4 @@ langchain_huggingface
 langchain_groq
 yfinance
 matplotlib
-openai
+openai==0.28
